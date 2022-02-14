@@ -14,11 +14,12 @@ function get_data(args)
     ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 
     # load train and test dataset
-    x_train, y_train = MNIST.traindata()
-    x_test,  y_test  = MNIST.testdata()
+    x_train, y_train = FashionMNIST.traindata(Float32)
+    x_test,  y_test  = FashionMNIST.testdata(Float32)
 
-    # Reshape arbitrarly-shaped input into a matrix-shaped output
-    x_train, x_test = Flux.flatten(x_train), Flux.flatten(x_test)
+    # reshape to 1 single channel images
+    x_train = reshape(x_train, 28, 28, 1, :)
+    x_test = reshape(x_test, 28, 28, 1, :)
 
     # One-hot-encode the labels
     y_train, y_test = onehotbatch(y_train, 0:9), onehotbatch(y_test, 0:9)
@@ -51,7 +52,24 @@ function evaluation_loss_accuracy(loader, model)
 end
 
 
-function set_model()
+function set_model(; imgsize=(28,28,1), nclasses=10)
+    return Chain(
+                Conv((11, 11), imgsize[end]=>64, stride=4, relu),
+                MaxPool((3, 3), stride=2),
+                Conv((5, 5), 64=>192, stride=4, relu),
+                MaxPool((3, 3), stride=2),
+                Conv((5, 5), 192=>284, relu, pad=(1,1)),
+                MaxPool((3, 3), stride=2),
+                Conv((3, 3), 384=>256, relu, pad=(1,1)),
+                Conv((3, 3), 256=>256, relu, pad=(1,1)),
+                MaxPool((3, 3), stride=2),
+                MeanPool((6, 6)),
+                flatten,
+                Dense(4096, 4096, relu),
+                Dropout(0.5),
+                Dense(4096, 4096, relu),
+                Dropout(0.5),
+                Dense(4096, nclasses, softmax))
 end
 
 
@@ -68,18 +86,13 @@ function train(; kws...)
     train_loader, test_loader = get_data(args)
 
     model = set_model()
-
     ps = Flux.params(model)  
     opt = ADAM(args.η) 
 
     for epoch in 1:args.epochs
 
         for (x,y) in train_loader
-            gs = Flux.gradient(ps) do
-                ŷ = model(x)
-                loss_function(ŷ, y)
-            end
-
+            gs = gradient(() -> loss_function(model(x), y), ps) # compute gradient
             Flux.Optimise.update!(opt, ps, gs)
         end
 
