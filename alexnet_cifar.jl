@@ -12,7 +12,6 @@ using ProgressBars
 
 
 function get_data(args)
-    # it fixes the error "DataType has no batchsize"
     ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 
     # load train and test dataset
@@ -27,7 +26,7 @@ function get_data(args)
     x_train = imresize(x_train, (64, 64, 3))
     x_test = imresize(x_test, (64, 64, 3))
 
-    # One-hot-encode the labels
+    # one-hot-encode the labels
     y_train = onehotbatch(y_train, 0:9)
     y_test = onehotbatch(y_test, 0:9)
 
@@ -58,10 +57,12 @@ function evaluation_loss_accuracy(loader, model)
     return loss / counter, accuracy / counter
 end
 
-
-function set_model(; size=(256, 256,3), num_classes=10)
+# AdaptiveMeanPool cannot be used with 64x64 because it will throw a 
+# DimensionMismatch. You can use it with 256x256 or bigger images
+# For more information refer to: https://github.com/FluxML/model-zoo/issues/334
+function set_model(; imgsize=(64, 64,3), num_classes=10)
     return Chain(
-                Conv((11, 11), 3=>64, stride=(4,4), relu, pad=(2,2)),
+                Conv((11, 11), imgsize[end]=>64, stride=(4,4), relu, pad=(2,2)),
                 MaxPool((3, 3), stride=(2,2)),  
                 Conv((5, 5), 64=>192, relu, pad=(2,2)),
                 MaxPool((3, 3), stride=(2,2)),
@@ -69,10 +70,10 @@ function set_model(; size=(256, 256,3), num_classes=10)
                 Conv((3, 3), 384=>256, relu, pad=(1,1)),
                 Conv((3, 3), 256=>256, relu, pad=(1,1)),
                 MaxPool((3, 3), stride=(2,2)),
-                # AdaptiveMeanPool((6, 6)),
+                # AdaptiveMeanPool((6, 6)), 
                 flatten,
                 Dropout(0.5),
-                Dense(256*1*1, 4096, relu),
+                Dense(256*1*1, 4096, relu), # With AdaptiveMeanPool((6, 6)) set 256 * 6 * 6
                 Dropout(0.5),
                 Dense(4096, 4096, relu),
                 Dense(4096, num_classes))
