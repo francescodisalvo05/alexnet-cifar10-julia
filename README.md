@@ -1,1 +1,1 @@
-# mnist-cnn-julia
+# alexnet-cifar10-julia
