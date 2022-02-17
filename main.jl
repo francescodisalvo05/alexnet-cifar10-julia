@@ -39,8 +39,8 @@ function get_data(args)
 end
 
 
-function loss_function(ŷ, y)
-    logitcrossentropy(ŷ, y)
+function loss_function(ŷ, y)
+    logitcrossentropy(ŷ, y)
 end
 
 
@@ -49,9 +49,9 @@ function evaluation_loss_accuracy(loader, model)
     loss, accuracy, counter = 0f0, 0f0, 0
 
     for (x,y) in loader
-        ŷ = model(x)
-        loss += loss_function(ŷ,y)
-        accuracy += sum(onecold(ŷ) .== onecold(y))
+        ŷ = model(x)
+        loss += loss_function(ŷ,y)
+        accuracy += sum(onecold(ŷ) .== onecold(y))
         counter +=  1
     end
 
@@ -59,7 +59,7 @@ function evaluation_loss_accuracy(loader, model)
 end
 
 # my implementation
-function set_model(; size=(64,64,3), num_classes=10)
+function set_model(; size=(256, 256,3), num_classes=10)
     return Chain(
                 Conv((11, 11), 3=>64, stride=(4,4), relu, pad=(2,2)),
                 MaxPool((3, 3), stride=(2,2)),  
@@ -69,10 +69,10 @@ function set_model(; size=(64,64,3), num_classes=10)
                 Conv((3, 3), 384=>256, relu, pad=(1,1)),
                 Conv((3, 3), 256=>256, relu, pad=(1,1)),
                 MaxPool((3, 3), stride=(2,2)),
-                AdaptiveMeanPool((6, 6)),
+                # AdaptiveMeanPool((6, 6)),
                 flatten,
                 Dropout(0.5),
-                Dense(256*6*6, 4096, relu),
+                Dense(256*1*1, 4096, relu),
                 Dropout(0.5),
                 Dense(4096, 4096, relu),
                 Dense(4096, num_classes))
@@ -118,7 +118,7 @@ end
 
 Base.@kwdef mutable struct Args
     η = 1e-4             # learning rate
-    batchsize = 256     # batch size
+    batchsize = 128     # batch size
     epochs = 1          # number of epochs
 end
 
@@ -129,9 +129,9 @@ function train(; kws...)
     
     train_loader, test_loader = get_data(args)
 
-    # model = set_model() # my implmentation
+    model = set_model() # my implmentation
     # model = alexnet() # Metalhead's implmentation
-    model = LeNet5() # test pipeline
+    # model = LeNet5() # test pipeline
 
 
     ps = Flux.params(model)  
@@ -142,7 +142,6 @@ function train(; kws...)
     for epoch in 1:args.epochs
 
         for (x,y) in ProgressBar(train_loader)
-            
             @assert size(x) == (64, 64, 3, args.batchsize) 
             @assert size(y) == (10, args.batchsize) 
 
